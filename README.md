@@ -120,3 +120,12 @@ spec:
   version: "1234"
 ```
 
+요약
+- CR / CRD는 k8s cluster supported resource.
+- 해당 리소스를 k8s에 Register하기 -> register.go의 AddKnownTypes 함수의 파라미터로 custom하게 정의한 go struct 추가.
+- CR의 behavior 정의하기
+  - metav1.TypeMeta, metav1.ObjectMeta 등 몇몇 메소드는 타입으로 정의하면 기본 제공
+  - deepcopy는 직접 구현해야 함 / clientset, informers, lister 구현 필요 -> code-generator 사용
+  - CRD는 controller-gen으로 구현 가능.
+
+---
