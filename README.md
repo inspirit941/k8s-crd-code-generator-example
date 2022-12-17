@@ -129,3 +129,13 @@ spec:
   - CRD는 controller-gen으로 구현 가능.
 
 ---
+
+## Add / del handler func & token field in kluster CRD
+
+https://www.youtube.com/watch?v=MOutOgdXfnA
+
+controller 패키지 생성, 코드 작성
+- CR에 생성 / 삭제 이벤트 발생 시 EventHandler, workqueue에서 이벤트 받아 처리하는 goroutine 실행함수.
+- lister에 Resource() 메소드 구현이 빠져 있어서 추가.
+
+
