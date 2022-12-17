@@ -17,6 +17,11 @@ var (
 	AddToScheme   = SchemeBuilder.AddToScheme // go build에서 발생하는 undefined 에러 해결
 )
 
+// code-generator가 구현한 lister에서 client.Resource("kluster") 메소드가 에러 남. Resource를 리턴하는 메소드 추가 구현.
+func Resource(resource string) schema.GroupResource {
+	return SchemeGroupVersion.WithResource(resource).GroupResource()
+}
+
 // 패키지가 로드될 때 Kluster라는 struct를 등록.
 func init() {
 	SchemeBuilder.Register(addKnownTypes) // register 안에 파라미터로 들어갈 function이 type을 scheme에 등록하는 역할을 수행함.
