@@ -89,3 +89,34 @@ cf. https://github.com/viveksinghggits/kluster/issues/1. 위 sh로 코드 생성
 - `k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset: module k8s.io/kubernetes@latest found (v1.26.0), but does not contain package k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset`
 - 에러가 뜬다. informer 값을 로컬에서 전부 지우면 go mod tidy가 동작함.
 
+k8s가 registered된 type을 토대로 뭔가 응답을 보내려면 CRD를 정의해줘야 한다.
+- crd 없이 생성하면 type을 인식하기만 할 뿐 특정 작업을 수행하지는 못하는 듯. (the server could not find the requested resources 에러)
+- 따라서 CRD를 controller-gen 으로 만들어주고, types에 정의된 struct에 json 옵션을 추가해준다.
+
+-> controller-gen을 사용해서 CRD를 생성한다. ![referenec](https://github.com/kubernetes-sigs/kubebuilder/blob/master/docs/book/src/reference/controller-gen.md)
+- controller-gen을 Cli로 설치하려면
+  - https://github.com/kubernetes-sigs/controller-tools를 clone한다
+  - `go build ./cmd/controller-gen`
+  - 만들어진 binary를 /usr/local/bin 디렉토리에 추가.
+- `controller-gen paths=github.com/inspirit941/kluster/pkg/apis/inspirit941.dev/v1alpha1 crd:trivialVersions=true crd:crdVersions=v1 output:crd:artifacts:config=manifests`
+- -> 강의에서는 이렇게 명령어 입력. 내 로컬에서는 `controller-gen paths=github.com/inspirit941/kluster/pkg/apis/inspirit941.dev/v1alpha1 +crd:crdVersions=v1 +output:artifacts:config=manifests`
+  - paths: api 정보가 있는 Package
+  - crdVersions: v1권장. crdVersion v1beta1은 k8s 1.22 버전부터 deprecated되었다. (https://github.com/k8s-operatorhub/community-operators/discussions/468)
+  - config=manifest -> manifest 형태로 generate
+
+터미널을 입력하면 루트 디렉토리에 ./manifests/inspirit941.dev_klusters.yaml 파일 하나가 생성됨.
+- 이렇게 생성된 yaml 파일을 클러스터에 배포한 뒤 main.go를 실행하면, (the server could not find the requested resources 에러)가 발생하지 않는다.
+
+이제 아래의 yaml을 CR로 배포할 수 있다. 배포한 리소스는 `kubectl get kluster` 로도 확인 가능.
+
+```yaml
+apiVersion: inspirit941.dev/v1alpha1
+kind: Kluster
+metadata:
+  name: kluster-0
+spec:
+  name: kluster-0
+  region: "ap-south-1"
+  version: "1234"
+```
+

@@ -14,6 +14,7 @@ var SchemeGroupVersion = schema.GroupVersion{
 
 var (
 	SchemeBuilder runtime.SchemeBuilder
+	AddToScheme   = SchemeBuilder.AddToScheme // go build에서 발생하는 undefined 에러 해결
 )
 
 // 패키지가 로드될 때 Kluster라는 struct를 등록.
