@@ -69,3 +69,23 @@ type Kluster struct {
 	Spec KlusterSpec
 }
 ```
+
+code Generator(https://github.com/kubernetes/code-generator)를 로컬에 받고, execDir 환경변수를 code-generator 다운받은 path로 설정한다.
+- execDir=/your/path/code-generator
+- `"${execDir}"/generate-groups.sh all github.com/inspirit941/kluster/pkg/client github.com/inspirit941/kluster/pkg/apis inspirit941.dev:v1alpha1 --go-header-file "${execDir}/hack/boilerplate.go.txt"`
+  - all 파라미터: 필요로 하는 4개 컴포넌트 (deepcopy object, clientset, informers, lister) 전부 생성한다.
+  - github.com/... : 컴포넌트들이 어느 모듈에 들어갈 것인지. 모듈명이 들어가야 한다. (go mod로 생성한 거)
+  - .../pkg/apis : 참조해야 할 types들은 모듈 내 어느 path에 있는지
+  - `inspirit941.dev:v1alpha1` : group과 version 명시
+  - boilerplate.go.txt : 생성된 코드에 라이센스 정보를 명시하기 위한 로직.
+
+위 명령어를 실행하면 deepcopy func, clientset, lister, informer 파일이 생성된다. github.com/inspirit941/kluster/pkg에 생성된다.
+- GOPATH/github.com/inspirit941/kluster/pkg... 에 생성되었음. github 아카이브를 위해 이 repo에 생성된 값을 복사해넣음.
+
+kubernetes-native resource를 client-go에서 호출해 쓸 때는 kubernetes.NewForConfig()을 보통 쓰지만, <Br>
+CRD를 import해서 쓸 때는 보통 clientset 모듈을 호출해서 쓴다.
+
+cf. https://github.com/viveksinghggits/kluster/issues/1. 위 sh로 코드 생성해서 go mod tidy를 하면 
+- `k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset: module k8s.io/kubernetes@latest found (v1.26.0), but does not contain package k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset`
+- 에러가 뜬다. informer 값을 로컬에서 전부 지우면 go mod tidy가 동작함.
+
