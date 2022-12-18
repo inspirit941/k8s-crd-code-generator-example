@@ -3,8 +3,10 @@ package controller
 import (
 	klientset "github.com/inspirit941/kluster/pkg/client/clientset/versioned"
 	informer "github.com/inspirit941/kluster/pkg/client/informers/externalversions/inspirit941.dev/v1alpha1"
-	klister "github.com/inspirit941/kluster/pkg/client/listers/v1alpha1/internalversion"
+	klister "github.com/inspirit941/kluster/pkg/client/listers/inspirit941.dev/v1alpha1"
+	"github.com/inspirit941/kluster/pkg/digitalocean"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"log"
@@ -15,6 +17,8 @@ import (
 type Controller struct {
 	// clientset for custom resource 'kluster'
 	klient klientset.Interface
+	// k8s apiserver 접근할 client도 추가한다.
+	client kubernetes.Interface
 
 	// informer maintains local cache. cache가 initialized/synced 되었는지 확인.
 	// kluster has synced or not.
@@ -25,8 +29,9 @@ type Controller struct {
 	wq workqueue.RateLimitingInterface
 }
 
-func NewController(klient klientset.Interface, klusterInformer informer.KlusterInformer) *Controller {
+func NewController(client kubernetes.Interface, klient klientset.Interface, klusterInformer informer.KlusterInformer) *Controller {
 	c := &Controller{
+		client:        client,
 		klient:        klient,
 		klusterSynced: klusterInformer.Informer().HasSynced,
 		kLister:       klusterInformer.Lister(),
@@ -99,6 +104,13 @@ func (c *Controller) processNextItem() bool {
 		return false
 	}
 	log.Printf("Kluster spec from Resource : %+v", kluster.Spec)
+
+	// digital ocean api 호출
+	clusterID, err := digitalocean.Create(c.client, kluster.Spec)
+	if err != nil {
+		// do something
+	}
+	log.Printf("cluster created; cluster id: %s", clusterID)
 
 	return true
 }

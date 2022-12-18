@@ -4,6 +4,10 @@ metadata:
   name: kluster-0
 spec:
   name: kluster-0
-  region: ap-south-1
-  version: "1234"
+  region: nyc1
+  version: "1.25.4-do.0" # https://docs.digitalocean.com/products/kubernetes/details/changelog/. api로도 조회 가능하지만 난 여기서 확인함.
   tokenSecret: test
+  nodePools:
+    - count: 3
+      name: "dummy-nodepool"
+      size: "s-2vcpu-2gb"

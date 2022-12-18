@@ -19,8 +19,8 @@ type KlusterSpec struct {
 	// input으로 필요한 값.
 	Name        string `json:"name,omitempty"`
 	Region      string `json:"region,omitempty"`
-	version     string `json:"version,omitempty"`
-	TokenSecret string `json:"tokenSecret,omitempty"` // digitalOcean에서는 token이 있어야 api 호출이 가능. 따라서 새 필드 추가.
+	Version     string `json:"version,omitempty"`
+	TokenSecret string `json:"tokenSecret,omitempty"` // digitalOcean에서는 token이 있어야 api 호출이 가능. 따라서 새 필드 추가. digitalOcean token값을 평문으로 넣는 게 아니라, token이 저장된 K8s secret의 이름을 넣는다. i.e. default/dosecret
 
 	NodePools []NodePool `json:"nodePools,omitempty"` // digitalOcean api를 보면 size, name, count 값이 required인 array임.
 }

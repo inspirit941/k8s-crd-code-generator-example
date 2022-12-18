@@ -139,3 +139,25 @@ controller 패키지 생성, 코드 작성
 - lister에 Resource() 메소드 구현이 빠져 있어서 추가.
 
 
+## Calling DigitalOcean API on CustomResource's add event
+
+유의: production 환경에서는 이런 방식으로 코드를 짜는 것보다는 interface로 구현에 필요한 메소드만 정의하고, cloud provider가 interface를 구현하는 식으로 접근하는 게 맞음
+
+```go
+type ... interface {
+	CreateCluster(...)
+	DeleteCluster(...)
+	GetKubeConfig(...)
+}
+
+// cloud provider struct가 Interface implement할 수 있도록.
+type AKS struct {}
+type EKS struct {}
+type DigitalOcean struct {
+	
+}
+
+func (d *DigitalOcean) CreateCluster(...) {
+	
+}
+```
