@@ -161,3 +161,39 @@ func (d *DigitalOcean) CreateCluster(...) {
 	
 }
 ```
+
+### SubResources / additional printer columes
+
+- spec 필드에서 cluster 생성에 쓰이는 configuration 값을 입력받은 상태.
+- 하지만 spec에 '사용자가 입력한 값 말고', controller에서 spec에 특정 필드를 추가하거나 수정하는 식의 동작이 필요할 수 있음. 
+  - 예컨대 create로 클러스터를 생성하고 id값을 받음. 다른 로직에서 clusterID가 쓰이는 경우가 많으므로, 이 값을 Custom Resource instance에 저장해두고 다른 로직에서 활용할 수 있으면 좋다.
+- Custom Resource가 생성되었을 때, '실제 DigitalOcean 클러스터 생성은 완료되었는지', 'digitalOcean 클러스터의 현재 상태' 와 같은 정보를 `k get kluster` 에서 활용할 수 있다면 좋다.
+
+status 필드를 추가할 예정.
+- spec은 사용자에 의해서만 수정, status는 controller에 의해서만 수정되도록 구조 설정
+  - status라는 Subresources를 정의하고, Controller는 subresource인 status 수정만 가능하도록 role 생성.
+
+subresource 예시 
+- Pod의 Subresource는 logs.
+- k8s Resource 예시
+  - `apis/apps/v1/namespace/<ns>/deployments`
+  - `v1/namespaces/<ns>/pods/<podname>/logs`
+
+
+```yaml
+apiVersion:
+kind:
+metadata:
+spec:
+  ...
+  ...
+  ...
+status: # 정보 추가
+  clusterId
+  progress
+  kubeconfig
+
+---
+role-test:
+  resources: Kluster/status
+```

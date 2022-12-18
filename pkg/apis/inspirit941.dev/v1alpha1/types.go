@@ -6,12 +6,14 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:subresource:status
 type Kluster struct {
 	// k8s object / resource는 세 개의 main field가 필요함.
 	metav1.TypeMeta   `json:",inline"`            // type meta: which particular type of resources it is. client-go의 metav1을 쓸 수 있다.
 	metav1.ObjectMeta `json:"metadata,omitempty"` // object meta: details of object (name / namespace 등)
 
-	Spec KlusterSpec `json:"spec,omitempty"` // space spec : configuration or details about that object
+	Spec   KlusterSpec   `json:"spec,omitempty"`   // space spec : configuration or details about that object
+	Status KlusterStatus `json:"status,omitempty"` // subresource. kubebuilder 어노테이션으로 code generate를 사용한다.
 }
 
 type KlusterSpec struct {
@@ -38,4 +40,10 @@ type KlusterList struct {
 	metav1.ListMeta `json:"metadata,omitempty"` // objectmeta가 아니라 listmeta로 설정해야 에러가 안 남.
 
 	Items []Kluster `json:"items,omitempty"`
+}
+
+type KlusterStatus struct {
+	KlusterID  string `json:"KlusterID,omitempty"`
+	Progress   string `json:"progress,omitempty"`
+	KubeConfig string `json:"kubeConfig,omitempty"`
 }
