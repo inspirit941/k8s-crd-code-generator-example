@@ -7,6 +7,7 @@ import (
 	klient "github.com/inspirit941/kluster/pkg/client/clientset/versioned"
 	"github.com/inspirit941/kluster/pkg/client/informers/externalversions"
 	"github.com/inspirit941/kluster/pkg/controller"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"log"
 	"os"
@@ -37,19 +38,16 @@ func main() {
 	if err != nil {
 		log.Printf("getting klientset %s", err.Error())
 	}
-	//fmt.Println(klientset)
-	//// 이런 식으로 쓸 수 있다.
-	//klusters, err := klientset.Inspirit941V1alpha1().Klusters("").List(context.Background(), metav1.ListOptions{})
-	//if err != nil {
-	//	log.Printf(err.Error())
-	//}
-	//fmt.Println(len(klusters.Items))
+	client, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Printf("getting k8s client %s", err.Error())
+	}
 
 	// informer를 호출하려면 informerFactory를 사용해야 함.
 	informerFactory := externalversions.NewSharedInformerFactory(klientset, 20*time.Minute) // resync 시간은 20분으로 정의.
 	// informer를 동작시키려면 chan이 필요.
 	ch := make(chan struct{})
-	c := controller.NewController(klientset, informerFactory.Inspirit941().V1alpha1().Klusters())
+	c := controller.NewController(client, klientset, informerFactory.Inspirit941().V1alpha1().Klusters())
 
 	informerFactory.Start(ch)
 	if err := c.Run(ch); err != nil {
