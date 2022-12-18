@@ -69,6 +69,37 @@ func (c *Controller) worker() {
 }
 
 func (c *Controller) processNextItem() bool {
+	// get resource from cache
+	item, shutDown := c.wq.Get()
+	if shutDown {
+		// logs as well
+		return false
+	}
+
+	// 함수가 동작 끝나면 workqueue에서 제거.
+	defer c.wq.Forget(item)
+
+	// get namespace / name from cache
+	key, err := cache.MetaNamespaceKeyFunc(item)
+	if err != nil {
+		log.Printf("error %s calling Namespace key func on cache for item", err.Error())
+		return false
+	}
+
+	ns, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		log.Printf("error during splitting key into namespace / name: %s", err.Error())
+		return false
+	}
+
+	// ns, name 확인했으니 lister로 exact Object 조회
+	kluster, err := c.kLister.Klusters(ns).Get(name)
+	if err != nil {
+		log.Printf("error during get Kluster resouces from lister: %s", err.Error())
+		return false
+	}
+	log.Printf("Kluster spec from Resource : %+v", kluster.Spec)
+
 	return true
 }
 
