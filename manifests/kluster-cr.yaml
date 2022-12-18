@@ -1,0 +1,9 @@
+apiVersion: inspirit941.dev/v1alpha1 # 실제로는 동작 안 함. CR 예시.
+kind: Kluster
+metadata:
+  name: kluster-0
+spec:
+  name: kluster-0
+  region: ap-south-1
+  version: "1234"
+  tokenSecret: test
