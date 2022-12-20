@@ -1,10 +1,13 @@
 package controller
 
 import (
+	"context"
+	"github.com/inspirit941/kluster/pkg/apis/inspirit941.dev/v1alpha1"
 	klientset "github.com/inspirit941/kluster/pkg/client/clientset/versioned"
 	informer "github.com/inspirit941/kluster/pkg/client/informers/externalversions/inspirit941.dev/v1alpha1"
 	klister "github.com/inspirit941/kluster/pkg/client/listers/inspirit941.dev/v1alpha1"
 	"github.com/inspirit941/kluster/pkg/digitalocean"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -110,9 +113,23 @@ func (c *Controller) processNextItem() bool {
 	if err != nil {
 		// do something
 	}
+
 	log.Printf("cluster created; cluster id: %s", clusterID)
+	err = c.updateStatus(clusterID, "creating", kluster)
+	if err != nil {
+		log.Printf("error: %s,  during update status of the cluster '%s'\n", err.Error(), kluster.Name)
+	}
 
 	return true
+}
+
+// subresource인 Status를 업데이트하는 로직
+func (c *Controller) updateStatus(id, progress string, kluster *v1alpha1.Kluster) error {
+	kluster.Status.KlusterID = id
+	kluster.Status.Progress = progress
+	// subresource 정의한 다음 code-generate하면 새로 생성되는 메소드.
+	_, err := c.klient.Inspirit941V1alpha1().Klusters(kluster.Namespace).UpdateStatus(context.Background(), kluster, metav1.UpdateOptions{})
+	return err
 }
 
 // 리소스 생성 이벤트가 들어올 때.
