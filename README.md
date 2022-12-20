@@ -197,3 +197,6 @@ status: # 정보 추가
 role-test:
   resources: Kluster/status
 ```
+
+subresource인 Status 필드가 추가되었으니, UpdateStatus() 와 같은 subresource 관련 메소드가 필요. code generator 실행해서 업데이트한다.
+
