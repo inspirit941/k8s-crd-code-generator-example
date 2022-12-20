@@ -7,6 +7,8 @@ import (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="ClusterID",type=string,JSONPath=`.status.klusterID`
+// +kubebuilder:printcolumn:name="Progress",type=string,JSONPath=`.status.progress`
 type Kluster struct {
 	// k8s object / resource는 세 개의 main field가 필요함.
 	metav1.TypeMeta   `json:",inline"`            // type meta: which particular type of resources it is. client-go의 metav1을 쓸 수 있다.

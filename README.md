@@ -200,3 +200,6 @@ role-test:
 
 subresource인 Status 필드가 추가되었으니, UpdateStatus() 와 같은 subresource 관련 메소드가 필요. code generator 실행해서 업데이트한다.
 
+printer column : kubebuilder 공식문서에서 'additional printer columns' 확인하면 알 수 있음.
+- types.go 참고
+
