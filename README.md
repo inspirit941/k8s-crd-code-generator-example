@@ -203,3 +203,11 @@ subresource인 Status 필드가 추가되었으니, UpdateStatus() 와 같은 su
 printer column : kubebuilder 공식문서에서 'additional printer columns' 확인하면 알 수 있음.
 - types.go 참고
 
+### Event Recorder for Kluster and routines to handle objects from queue
+
+subresource인 progress를 creating으로 변경하는 것까지는 진행한 상태. 실제로 digitalocean api에서 클러스터가 생성되면 progress를 다른 걸로 변경해줘야 함.
+- https://github.com/kanisterio/kanister 의 poll 패키지 -> Wait() 메소드를 사용할 예정.
+- go get github.com/kanisterio/kanister/poll 로 설치. -> graymeta/stow 라는 디펜던시 버전에러가 있으므로, replace 명령어로 버전을 맞춰준다.
+
+
+

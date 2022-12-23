@@ -47,3 +47,16 @@ func getToken(client kubernetes.Interface, secretName string) (string, error) {
 	}
 	return string(s.Data["token"]), nil
 }
+
+// digitalOcean에서 생성한 클러스터의 상태 체크용 함수
+// https://docs.digitalocean.com/reference/api/api-reference/#operation/kubernetes_get_cluster
+func ClusterState(c kubernetes.Interface, spec v1alpha1.KlusterSpec, id string) (string, error) {
+	token, err := getToken(c, spec.TokenSecret)
+	if err != nil {
+		return "", err
+	}
+	// digitalOcean은 토큰을 토대로 K8S secret 정보 가져와서 수행하는 방식
+	client := godo.NewFromToken(token)
+	cluster, _, err := client.Kubernetes.Get(context.Background(), id)
+	return string(cluster.Status.State), err
+}

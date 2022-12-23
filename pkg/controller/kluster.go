@@ -7,6 +7,7 @@ import (
 	informer "github.com/inspirit941/kluster/pkg/client/informers/externalversions/inspirit941.dev/v1alpha1"
 	klister "github.com/inspirit941/kluster/pkg/client/listers/inspirit941.dev/v1alpha1"
 	"github.com/inspirit941/kluster/pkg/digitalocean"
+	"github.com/kanisterio/kanister/pkg/poll"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -120,15 +121,54 @@ func (c *Controller) processNextItem() bool {
 		log.Printf("error: %s,  during update status of the cluster '%s'\n", err.Error(), kluster.Name)
 	}
 
+	// query DigitalOcean API to make sure cluster's status is Running.
+	// kubectl create -f 명령어로 실행해도 알아서 백그라운드로 동작함.
+	err = c.waitForCluster(kluster.Spec, clusterID)
+	if err != nil {
+		log.Printf("error %s, waiting for cluster to be running", err.Error())
+	}
+
+	// status 변경. production의 경우 retry 로직이 추가되어야 함.
+	err = c.updateStatus(clusterID, "running", kluster)
+	if err != nil {
+		log.Printf("error %s, updating cluster status after waiting for cluster")
+	}
+
 	return true
+}
+
+func (c *Controller) waitForCluster(spec v1alpha1.KlusterSpec, clusterId string) error {
+	// context에 timeout 붙여서 '특정 시간을 초과하면 더 이상 poll하지 않도록' 설정
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	
+	// poll.Wait() 파라미터로 들어간 func가 true를 리턴할 때까지 주기적으로 실행함.
+	return poll.Wait(ctx, func(ctx context.Context) (bool, error) {
+		state, err := digitalocean.ClusterState(c.client, spec, clusterId)
+		if err != nil {
+			return false, err
+		}
+		if state == "running" {
+			return true, nil
+		}
+		return false, nil
+	})
 }
 
 // subresource인 Status를 업데이트하는 로직
 func (c *Controller) updateStatus(id, progress string, kluster *v1alpha1.Kluster) error {
-	kluster.Status.KlusterID = id
-	kluster.Status.Progress = progress
+	// update를 실행할 때, kluster struct가 이미 modified된 상태면 에러가 발생함
+	// i.e. error Operation cannot be fulfilled on kluster.inspirit941.dev "<cr name>" : the object has been modified; please apply your changes to the latest version and try again..
+	// 따라서 latest kluster struct를 받을 수 있도록 수정. (get the latest version of kluster)
+	k, err := c.klient.Inspirit941V1alpha1().Klusters(kluster.Namespace).Get(context.Background(), kluster.Name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	k.Status.KlusterID = id
+	k.Status.Progress = progress
 	// subresource 정의한 다음 code-generate하면 새로 생성되는 메소드.
-	_, err := c.klient.Inspirit941V1alpha1().Klusters(kluster.Namespace).UpdateStatus(context.Background(), kluster, metav1.UpdateOptions{})
+	_, err = c.klient.Inspirit941V1alpha1().Klusters(kluster.Namespace).UpdateStatus(context.Background(), kluster, metav1.UpdateOptions{})
 	return err
 }
 
