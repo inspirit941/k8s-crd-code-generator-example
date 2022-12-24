@@ -209,5 +209,22 @@ subresource인 progress를 creating으로 변경하는 것까지는 진행한 �
 - https://github.com/kanisterio/kanister 의 poll 패키지 -> Wait() 메소드를 사용할 예정.
 - go get github.com/kanisterio/kanister/poll 로 설치. -> graymeta/stow 라는 디펜던시 버전에러가 있으므로, replace 명령어로 버전을 맞춰준다.
 
+Event Recorder
+- 예컨대 `kubectl create deployment nginx --image nginx` 로 deployment를 생성한 뒤 describe로 상태를 확인해보면 Events 필드가 있다.
+  - 'deployment에서 pod scale을 얼마로 조정했는지' 같은 이벤트가 발생
+  - 누가 이 이벤트를 발생시켰는지 (From -> i.e. deployment-controller) 
+  - 이벤트가 발생하고 얼마나 시간이 지났는지 (Age)
+  - 이벤트 타입은 무엇인지 (Normal / Error 등등)
+  - 왜 발생했는지 (Reason -> i.e. Scheduled, Pulling...)
 
+
+예시의 경우 kluster가 생성될 때, status 필드가 업데이트될 때 event를 생성할 수 있음.
+
+#### concurrency issue with operator
+
+지금 코드는 controller.Run() 메소드에서 하나의 goroutine이 돌고 있음. 요청이 들어오는 queue를 처리하는 daemon process가 하나인 셈
+- digitalocean에서 create api 호출 후 status를 업데이트하는 로직이 하나의 daemon process에서 처리되므로, 
+- 동시에 여러 Custom resource를 생성하면 digital ocean api 호출까지 시간이 오래 걸림
+
+-> run 내부에서 process를 여러 개 만들어두거나, run 메소드의 파라미터로 goroutine 개수를 지정하는 식으로 리팩토링할 수 있음.
 

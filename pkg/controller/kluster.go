@@ -4,14 +4,21 @@ import (
 	"context"
 	"github.com/inspirit941/kluster/pkg/apis/inspirit941.dev/v1alpha1"
 	klientset "github.com/inspirit941/kluster/pkg/client/clientset/versioned"
+	klusterscheme "github.com/inspirit941/kluster/pkg/client/clientset/versioned/scheme"
 	informer "github.com/inspirit941/kluster/pkg/client/informers/externalversions/inspirit941.dev/v1alpha1"
 	klister "github.com/inspirit941/kluster/pkg/client/listers/inspirit941.dev/v1alpha1"
 	"github.com/inspirit941/kluster/pkg/digitalocean"
 	"github.com/kanisterio/kanister/pkg/poll"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"log"
 	"time"
@@ -31,15 +38,30 @@ type Controller struct {
 	kLister klister.KlusterLister
 	// queue. object의 Create / delete 작업을 순차적으로 수행하기.
 	wq workqueue.RateLimitingInterface
+	// Event Recorder
+	recorder record.EventRecorder
 }
 
 func NewController(client kubernetes.Interface, klient klientset.Interface, klusterInformer informer.KlusterInformer) *Controller {
+	// 이벤트를 생성할 때 "어떤 컴포넌트가 이벤트를 생성했는지"를 추가해줘야 함.
+	// -> Controller / Operator의 type을 code-generator가 Event code를 생성할 때 같이 넣어주는 것.
+	// Custom Resource를 code generate할 때 만들어진 scheme 패키지를 아래와 같이 사용한다.
+	runtime.Must(klusterscheme.AddToScheme(scheme.Scheme)) // operator type을 k8s standard scheme에 추가함.
+	log.Println("creating event broadcaster...")
+	eventBroadCaster := record.NewBroadcaster()
+	eventBroadCaster.StartStructuredLogging(0) // 로깅관련 세팅 추가
+	eventBroadCaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{
+		Interface: client.CoreV1().Events(""),
+	}) // event interface 추가
+	recorder := eventBroadCaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "Kluster"})
+
 	c := &Controller{
 		client:        client,
 		klient:        klient,
 		klusterSynced: klusterInformer.Informer().HasSynced,
 		kLister:       klusterInformer.Lister(),
 		wq:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "kluster"),
+		recorder:      recorder,
 	}
 
 	// register functions.
@@ -103,17 +125,26 @@ func (c *Controller) processNextItem() bool {
 
 	// ns, name 확인했으니 lister로 exact Object 조회
 	kluster, err := c.kLister.Klusters(ns).Get(name)
+	// 클러스터에서 이미 삭제된 경우
+	if apierrors.IsNotFound(err) {
+		log.Printf("handle delete event for kluster '%s'", name)
+		// todo: digitalocean api에서 클러스터 삭제 요청.
+		return true
+	}
 	if err != nil {
 		log.Printf("error during get Kluster resouces from lister: %s", err.Error())
 		return false
 	}
+
 	log.Printf("Kluster spec from Resource : %+v", kluster.Spec)
 
 	// digital ocean api 호출
 	clusterID, err := digitalocean.Create(c.client, kluster.Spec)
 	if err != nil {
-		// do something
+		// do something (retry or return)
 	}
+	// 성공적으로 클러스터가 생성될 경우 이벤트 생성
+	c.recorder.Event(kluster, corev1.EventTypeNormal, "ClusterCreation", "Digital Ocean Creation API was called to create the cluster.")
 
 	log.Printf("cluster created; cluster id: %s", clusterID)
 	err = c.updateStatus(clusterID, "creating", kluster)
@@ -133,7 +164,7 @@ func (c *Controller) processNextItem() bool {
 	if err != nil {
 		log.Printf("error %s, updating cluster status after waiting for cluster")
 	}
-
+	c.recorder.Event(kluster, corev1.EventTypeNormal, "ClusterCreationCompleted", "Digital Ocean Creation API was completed.")
 	return true
 }
 
@@ -141,7 +172,7 @@ func (c *Controller) waitForCluster(spec v1alpha1.KlusterSpec, clusterId string)
 	// context에 timeout 붙여서 '특정 시간을 초과하면 더 이상 poll하지 않도록' 설정
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	
+
 	// poll.Wait() 파라미터로 들어간 func가 true를 리턴할 때까지 주기적으로 실행함.
 	return poll.Wait(ctx, func(ctx context.Context) (bool, error) {
 		state, err := digitalocean.ClusterState(c.client, spec, clusterId)
