@@ -228,3 +228,27 @@ Event Recorder
 
 -> run 내부에서 process를 여러 개 만들어두거나, run 메소드의 파라미터로 goroutine 개수를 지정하는 식으로 리팩토링할 수 있음.
 
+
+### Packaging (Containerize & RBAC) k8s operator
+
+- Dockerfile 생성. `docker build -t <dockerhub_repo>/<name>:tag` 로 빌드
+- 생성된 docker image를 push한 뒤, `kubectl create deployment kluster --image <dockerhub-image> --dry-run=client -oyaml > deploy.yaml`
+- deploy.yaml 파일 배포.
+  - digitalocean 토큰값을 클러스터에 secret으로 배포되어 있어야 함 `kubectl create secret generic dosecret --from-literal token="token_value"`
+  - CRD yaml도 배포되어 있어야 함.
+
+![스크린샷 2022-12-24 오후 4 28 01](https://user-images.githubusercontent.com/26548454/209425907-a9333d15-a87d-4941-8f98-906d3e68b49f.png)
+- inClusterConfig() 메소드를 사용했을 때 발생할 수 있는 에러.
+  - 별다른 설정을 하지 않았으므로 default ServiceAccount를 사용했는데, 이 account는 리소스에 접근할 권한이 없음.
+  - 따라서 권한이 있는 serviceAccount를 생성하고, deployment가 해당 serviceaccount를 사용하도록 수정.
+
+cf. serviceAccount가 controller에서 사용하는 k8s 리소스에는 전부 접근권한이 있어야 함.
+- secret / CRD (kluster) / events / subresource (status)
+- 이 중 secret은 clusterRole이 아니라, 특정 namespace에 배포된 secret에만 접근할 수 있도록 rolebinding 형태로 추가해야 함.
+
+RBAC -> 생성한 뒤 yaml 파일을 일부 수정한 내용이 있음
+- `kubectl create serviceaccount kluster-sa --dry-run=client -oyaml > sa.yaml`
+- `kubectl create clusterrole kluster-clusterrole --resource Kluster --verb list,watch,get --dry-run=client -oyaml` -> 이후에 yaml 추가로 수정.
+- `kubectl create clusterrolebinding kluster-crb --serviceaccount default:kluster-sa --clusterrole kluster-clusterrole --dry-run=client -oyaml > manifests/clusterrolebinding.yaml`
+- `kubectl create role kluster-role --resource secret --verb get --dry-run=client -oyaml`
+

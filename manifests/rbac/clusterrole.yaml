@@ -1,0 +1,25 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kluster-clusterrole
+rules:
+  - apiGroups:
+      - inspirit941.dev
+    resources:
+      - klusters
+    verbs:
+      - list
+      - watch
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+  - apiGroups:
+      - inspirit941.dev
+    resources: # CRD에서 정의한 subresource에만 접근 가능한 RBAC도 정의가 필요
+      - klusters/status
+    verbs:
+      - update
